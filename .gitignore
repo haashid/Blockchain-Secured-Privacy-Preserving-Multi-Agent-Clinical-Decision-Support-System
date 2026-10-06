@@ -1,0 +1,75 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/build/
+.vite/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Fabric binaries (downloaded)
+blockchain/bin/
+
+# Fabric crypto material (generated)
+blockchain/network/crypto-config/
+blockchain/network/channel-artifacts/
+blockchain/network/peerOrganizations/
+blockchain/network/ordererOrganizations/
+
+# Storage
+storage/
+*.enc
+
+# Database
+*.db
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Docker volumes
+docker-data/
+
+# Coverage
+htmlcov/
+.coverage
+coverage.xml
+
+# Ignored archives and logs
+*.tar.gz
+.freebuff/
+cleanecs/
+test-storage*/
+multichain.db
+

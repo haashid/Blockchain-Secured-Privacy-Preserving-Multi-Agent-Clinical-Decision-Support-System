@@ -1,0 +1,46 @@
+# Hyperledger Fabric - Cryptogen Configuration
+# Defines the network organizations, peers, and orderers for crypto material generation.
+# Used by `cryptogen generate` during setup.sh
+
+OrdererOrgs:
+  - Name: Orderer
+    Domain: ai-coordination.com
+    EnableNodeOUs: true
+    Specs:
+      - Hostname: orderer
+        SANS:
+          - localhost
+          - 127.0.0.1
+
+PeerOrgs:
+  - Name: Org1
+    Domain: org1.ai-coordination.com
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+      SANS:
+        - localhost
+        - 127.0.0.1
+    Users:
+      Count: 1
+    Specs:
+      - Hostname: peer0
+        SANS:
+          - localhost
+          - 127.0.0.1
+
+  - Name: Org2
+    Domain: org2.ai-coordination.com
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+      SANS:
+        - localhost
+        - 127.0.0.1
+    Users:
+      Count: 1
+    Specs:
+      - Hostname: peer0
+        SANS:
+          - localhost
+          - 127.0.0.1
