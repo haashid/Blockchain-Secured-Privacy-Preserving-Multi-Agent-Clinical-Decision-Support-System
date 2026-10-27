@@ -35,8 +35,13 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "llama3"
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
-    GROQ_FAST_MODEL: str = "llama3-8b-8192"
+    GROQ_MODEL: str = "qwen/qwen3.8-27b"
+    GROQ_MODEL_PRIMARY: str = "qwen/qwen3.8-27b"
+    GROQ_MODEL_FALLBACK: str = "openai/gpt-oss-20b"
+    GROQ_FAST_MODEL: str = "qwen/qwen3.8-27b"
+    GROQ_MAX_CONCURRENT_REQUESTS: int = 3
+    GROQ_MAX_RETRIES: int = 3
+    GROQ_REQUEST_TIMEOUT_SECONDS: float = 30.0
 
     # Hyperledger Fabric
     FABRIC_NETWORK: str = "development"
@@ -49,6 +54,8 @@ class Settings(BaseSettings):
     FABRIC_GATEWAY_ENDPOINT: str = "localhost:7051"
     FABRIC_ORG1_MSP: str = "Org1MSP"
     FABRIC_ORG2_MSP: str = "Org2MSP"
+    FABRIC_CONNECT_TIMEOUT_SECONDS: float = 3.0
+    FABRIC_REQUIRE_BLOCKCHAIN: bool = False
 
     # Object Storage
     MINIO_ENDPOINT: str = "localhost:9000"
@@ -56,6 +63,9 @@ class Settings(BaseSettings):
     MINIO_SECRET_KEY: str = "minioadmin"
     MINIO_BUCKET: str = "agent-storage"
     MINIO_SECURE: bool = False
+    MINIO_CONNECT_TIMEOUT_SECONDS: float = 2.0
+    MINIO_READ_TIMEOUT_SECONDS: float = 3.0
+    STORAGE_ALLOW_LOCAL_FALLBACK: bool = True
 
     # Encryption
     ENCRYPTION_KEY: str = "change-me-to-a-random-32-byte-hex-string"
@@ -64,10 +74,10 @@ class Settings(BaseSettings):
     CONSENSUS_THRESHOLD: float = 0.70
 
     # Workflow Orchestration
-    MAX_CONCURRENT_AGENTS: int = 6
-    AGENT_TIMEOUT_SECONDS: float = 60.0
+    MAX_CONCURRENT_AGENTS: int = 3
+    AGENT_TIMEOUT_SECONDS: float = 45.0
     MAX_REASONING_ROUNDS: int = 3
-    MAX_AGENT_RETRIES: int = 2
+    MAX_AGENT_RETRIES: int = 1
 
     # RAG (Retrieval-Augmented Generation)
     RAG_ENABLED: bool = True
@@ -78,6 +88,8 @@ class Settings(BaseSettings):
     RAG_CHUNK_OVERLAP: int = 64
     RAG_EMBEDDING_DIMENSION: int = 0  # 0 = auto-detect from embedding provider
     RAG_KNOWLEDGE_DIR: str = "knowledge/demo"
+    RAG_CACHE_DIR: str = "storage/rag_cache"
+    RAG_PERSIST_EMBEDDINGS: bool = True
 
     # Tamper Simulation
     SIMULATE_TAMPERING: bool = False

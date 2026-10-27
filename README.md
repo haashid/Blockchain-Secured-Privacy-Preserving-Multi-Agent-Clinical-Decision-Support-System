@@ -148,27 +148,38 @@ cd Blockchain-Secured-Privacy-Preserving-Multi-Agent-Clinical-Decision-Support-S
 ```
 
 ### 2. Backend Setup
+From the repository root:
 ```bash
-cd backend
 python -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+# On Windows:
+.\venv\Scripts\activate
+# On Linux/macOS:
+source venv/bin/activate
+
 pip install -r requirements.txt
-cp .env.example .env      # Update your Groq API keys and configurations
-uvicorn app:app --reload
+python backend/init.py             # Idempotent DB initialize & demo seeding
+uvicorn backend.app:app --host 0.0.0.0 --port 8000 --reload
 ```
+API runs on `http://localhost:8000` (Docs: `http://localhost:8000/docs`).
 
 ### 3. Frontend Setup
+In a second terminal:
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+Frontend runs on `http://localhost:5173`.
 
-### 4. Blockchain & Infrastructure Setup
-Ensure Docker is running, then start the Hyperledger and MinIO instances:
+### 4. Blockchain & Sidecar Services Setup (Optional)
+To run live MinIO storage and ZKP BBS+ containers:
 ```bash
-docker-compose up -d
+docker compose up -d zkp-service minio
 ```
+*(If Docker services are offline, MedAgentOS operates in bounded fallback and truthful simulation mode without crashing).*
+
+### 5. Detailed Manual Testing Guide
+See [Manual Testing Guide](docs/MANUAL_TESTING_GUIDE.md) for demo credentials, complete doctor-to-patient step-by-step verification, and automated regression test commands.
 
 ---
 

@@ -36,6 +36,21 @@ CRITICAL MEDICAL SAFETY CONSTRAINTS — YOU MUST FOLLOW ALL OF THESE:
 """
 
 
+# Sensible output token limits per agent role to avoid runaway generations and token waste
+ROLE_MAX_TOKENS: dict[str, int] = {
+    "supervisor": 600,
+    "verifier": 700,
+    "risk": 800,
+    "history": 900,
+    "laboratory": 1000,
+    "medication": 1000,
+    "evidence": 1200,
+    "critic": 1200,
+    "clinical_reasoning": 1400,
+    "synthesizer": 2200,
+}
+
+
 class LLMAgent(BaseAgent):
     """Base class for all functional LLM agents powered by Groq."""
 
@@ -59,7 +74,7 @@ class LLMAgent(BaseAgent):
             "Do NOT include markdown code blocks, explanations, or any text outside the JSON.\n"
             "Do NOT add fields not in the schema.\n"
             "Do NOT leave required fields empty — provide meaningful values.\n\n"
-            f"JSON Schema:\n{json.dumps(schema_json, indent=2)}\n\n"
+            f"JSON Schema:\n{json.dumps(schema_json, separators=(',', ':'))}\n\n"
             "IMPORTANT RULES:\n"
             "- confidence must be a float between 0.0 and 1.0\n"
             "- All list fields must be actual arrays, not strings\n"
@@ -70,7 +85,7 @@ class LLMAgent(BaseAgent):
         )
 
     def build_user_prompt(self, task: dict[str, Any], context: dict[str, Any]) -> str:
-        """Construct the prompt from the current task and available patient context."""
+        """Construct the prompt from the current task and available patient context with token efficiency."""
         prompt_parts: list[str] = []
 
         title = task.get("title", "Unknown Case")
@@ -81,16 +96,21 @@ class LLMAgent(BaseAgent):
 
         patient_context = task.get("patient_context") or {}
         if patient_context:
-            prompt_parts.append(f"Patient Context:\n{json.dumps(patient_context, indent=2)}")
+            prompt_parts.append(f"Patient Context:\n{json.dumps(patient_context, separators=(',', ':'))}")
 
+        # Compact previous outputs to remove repetitive disclaimers and save tokens
         previous_outputs = task.get("previous_outputs") or {}
         if previous_outputs:
-            prompt_parts.append("Previous Agent Outputs (for context — build upon, do not repeat):")
+            prompt_parts.append("Previous Agent Findings (build upon, do not repeat):")
             for role, output in previous_outputs.items():
                 if isinstance(output, dict):
-                    prompt_parts.append(f"--- {role} ---\n{json.dumps(output, indent=2)}")
+                    clean_output = {
+                        k: v for k, v in output.items()
+                        if k not in ("agent_id", "disclaimer", "raw_output", "verification_status", "blockchain_provenance")
+                    }
+                    prompt_parts.append(f"[{role}]: {json.dumps(clean_output, separators=(',', ':'))}")
                 else:
-                    prompt_parts.append(f"--- {role} ---\n{str(output)}")
+                    prompt_parts.append(f"[{role}]: {str(output)}")
 
         return "\n\n".join(prompt_parts)
 
@@ -100,14 +120,10 @@ class LLMAgent(BaseAgent):
         user_prompt = self.build_user_prompt(task, context or {})
         system_prompt = self.get_system_prompt()
 
-        # Use the main model for all agents to avoid rate limit pressure on the smaller model
-        model = settings.GROQ_MODEL
-
         agent_info = {
             "agent_id": self.agent_id,
             "role": self.role,
             "provider": "groq",
-            "model": model,
             "mode": self.mode,
         }
 
@@ -116,8 +132,15 @@ class LLMAgent(BaseAgent):
             **agent_info,
         )
 
+        max_out_tokens = ROLE_MAX_TOKENS.get(self.role, 1200)
+
         try:
-            result = await generate_json(system_prompt, user_prompt, model=model)
+            result = await generate_json(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                max_tokens=max_out_tokens,
+                agent_role=self.role,
+            )
         except Exception as e:
             latency_ms = (time.monotonic() - agent_start) * 1000
             logger.error(
@@ -133,6 +156,18 @@ class LLMAgent(BaseAgent):
         # Inject required agent identification fields
         result["agent_id"] = self.agent_id
         result["role"] = self.role
+
+        # Normalize confidence if omitted or clamped
+        if "confidence" in result:
+            try:
+                conf = float(result["confidence"])
+                if conf > 1.0 and conf <= 100.0:
+                    conf = conf / 100.0
+                result["confidence"] = max(0.0, min(1.0, conf))
+            except (ValueError, TypeError):
+                result["confidence"] = 0.85
+        else:
+            result["confidence"] = 0.85
 
         # Validate against Pydantic schema
         schema = self.get_output_schema()

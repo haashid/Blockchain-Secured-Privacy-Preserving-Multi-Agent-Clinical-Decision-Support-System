@@ -1,0 +1,14 @@
+{
+  "name": "zkp-service",
+  "version": "1.0.0",
+  "description": "BBS+ ZKP Authorization Service",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@mattrglobal/bbs-signatures": "^2.0.0",
+    "express": "^4.19.2",
+    "cors": "^2.8.5"
+  }
+}

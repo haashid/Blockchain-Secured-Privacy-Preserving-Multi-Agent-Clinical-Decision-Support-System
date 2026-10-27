@@ -183,7 +183,7 @@ export default function DashboardPage() {
                     <tr key={agent.id} className="hover:bg-[var(--bg-panel-hover)] transition-colors">
                       <td className="px-4 py-3">
                         <p className="text-[12px] font-bold text-[var(--text-primary)]">{agent.display_name}</p>
-                        <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{agent.name}</p>
+                        <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{agent.id}</p>
                       </td>
                       <td className="px-4 py-3 text-[11px] font-medium text-[var(--text-secondary)] capitalize">
                         {agent.role}

@@ -36,6 +36,19 @@ services:
       timeout: 5s
       retries: 5
 
+  zkp:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.zkp
+    container_name: multichain-zkp
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
   backend:
     build:
       context: .
@@ -48,6 +61,8 @@ services:
       postgres:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      zkp:
         condition: service_healthy
     volumes:
       - ./backend:/app/backend

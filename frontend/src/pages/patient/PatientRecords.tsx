@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileText, UploadCloud, Trash2, File, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { reportsApi, patientsApi } from '../../lib/hospitalApi';
-import { authApi } from '../../lib/api';
 import { cn, formatDate } from '../../lib/utils';
 
 export default function PatientRecords() {
@@ -10,11 +9,9 @@ export default function PatientRecords() {
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState('');
   
-  // Get current user to find their patient ID
-  const { data: user } = useQuery({ queryKey: ['me'], queryFn: authApi.me });
-  const { data: patients } = useQuery({ queryKey: ['patients'], queryFn: patientsApi.list, enabled: !!user });
-  const patient = patients?.find(p => p.email === user?.username + '@example.com') || patients?.[0]; // Fallback for demo
-  const patientId = patient?.id;
+  // Get current patient record
+  const { data: myPatient } = useQuery({ queryKey: ['myPatientRecord'], queryFn: patientsApi.myRecord, retry: false });
+  const patientId = myPatient?.id;
 
   const { data: reports, isLoading } = useQuery({
     queryKey: ['reports', patientId],

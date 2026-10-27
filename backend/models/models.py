@@ -115,6 +115,10 @@ class AgentIdentity(Base):
     sbt_tx_id = Column(String(200), nullable=True)
     private_key_pem = Column(Text, nullable=True)
     
+    # BBS+ Verifiable Credential
+    bbs_credential_signature = Column(Text, nullable=True)
+    bbs_credential_public_key = Column(Text, nullable=True)
+
     enrolled_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     agent = relationship("Agent", back_populates="identity")
@@ -147,9 +151,10 @@ class Task(Base):
         Enum("pending", "running", "completed", "failed", "cancelled", name="task_status"),
         nullable=False,
         default="pending",
+        index=True,
     )
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False, index=True)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
 
     user = relationship("User", back_populates="tasks", lazy="selectin")
@@ -174,6 +179,7 @@ class Run(Base):
         ),
         nullable=False,
         default="pending",
+        index=True,
     )
     supervisor_plan = Column(JSON, nullable=True)
     selected_agents = Column(JSON, default=list, nullable=False)
@@ -185,7 +191,7 @@ class Run(Base):
     verification_latency_ms = Column(Float, nullable=True)
     started_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False, index=True)
 
     task = relationship("Task", back_populates="runs", lazy="selectin")
     executions = relationship("AgentExecution", back_populates="run", lazy="selectin")
@@ -364,3 +370,29 @@ class ConsentRecord(Base):
     notes = Column(Text, nullable=True)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+# ─── ZKP Proof Audit Records ────────────────────────────────────────
+
+class ZKPProofRecord(Base):
+    __tablename__ = "zkp_proof_records"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=gen_uuid)
+    proof_id = Column(String(100), unique=True, nullable=False, index=True)
+    agent_did = Column(String(255), nullable=True, index=True)
+    credential_id = Column(String(255), nullable=True)
+    policy_id = Column(String(255), nullable=True)
+    authorization_request_id = Column(String(255), nullable=True)
+    nonce_hash = Column(String(255), nullable=True)
+    status = Column(
+        Enum("NOT_REQUIRED", "PENDING", "SIMULATED", "VERIFIED", "FAILED", name="zkp_status"),
+        nullable=False,
+        default="PENDING",
+    )
+    disclosed_attribute_names = Column(JSON, default=list, nullable=False)
+    proof_size = Column(Integer, nullable=True)
+    failure_reason = Column(String(500), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    verified_at = Column(DateTime(timezone=True), nullable=True)

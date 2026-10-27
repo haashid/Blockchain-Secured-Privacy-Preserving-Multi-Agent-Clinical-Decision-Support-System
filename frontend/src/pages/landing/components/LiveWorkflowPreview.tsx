@@ -15,7 +15,7 @@ export default function LiveWorkflowPreview() {
 
   // Conceptual animation
   useEffect(() => {
-    let t1, t2;
+    let t1: any, t2: any;
     const animate = () => {
       setStatuses(s => ({ ...s, laboratory: 'running', evidence: 'running', critic: 'waiting' }));
       t1 = setTimeout(() => {

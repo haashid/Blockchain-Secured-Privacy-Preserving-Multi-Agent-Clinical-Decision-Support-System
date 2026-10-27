@@ -13,6 +13,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 os.environ["AI_MODE"] = "mock"
 
 
+@pytest.fixture(autouse=True)
+def setup_orchestration_env(monkeypatch):
+    monkeypatch.setenv("AI_MODE", "mock")
+    monkeypatch.setenv("AI_PROVIDER", "mock")
+    from backend.core.config import get_settings
+    settings = get_settings()
+    monkeypatch.setattr(settings, "AI_MODE", "mock")
+    monkeypatch.setattr(settings, "AI_PROVIDER", "mock")
+    monkeypatch.setattr(settings, "RAG_ENABLED", False)
+
+
 # ─── Helpers ────────────────────────────────────────────────────────
 
 def _simple_task(desc: str = "Patient with fever", ctx: dict | None = None) -> dict:
@@ -38,7 +49,15 @@ async def _run(task_data: dict | None = None, mode: str = "centralized", **kwarg
 
 
 def run_async(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(coro)
 
 
 # ═══════════════════════════════════════════════════════════════════

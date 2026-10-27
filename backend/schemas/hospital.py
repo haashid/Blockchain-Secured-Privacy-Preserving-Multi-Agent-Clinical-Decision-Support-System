@@ -70,12 +70,16 @@ class DoctorResponse(BaseModel):
 
 class AppointmentCreate(BaseModel):
     patient_id: uuid.UUID
-    doctor_id: uuid.UUID
+    doctor_id: uuid.UUID | None = None
     scheduled_at: datetime
     duration_minutes: int = 30
     chief_complaint: str | None = None
     notes: str | None = None
     priority: Literal["routine", "urgent", "emergency"] = "routine"
+
+class AppointmentUpdate(BaseModel):
+    status: Literal["scheduled", "in_progress", "completed", "cancelled"] | None = None
+    notes: str | None = None
 
 class AppointmentResponse(BaseModel):
     id: uuid.UUID
@@ -90,16 +94,20 @@ class AppointmentResponse(BaseModel):
     linked_task_id: uuid.UUID | None
     created_at: datetime
     updated_at: datetime
+    patient_name: str | None = None
+    patient_mrn: str | None = None
+    doctor_name: str | None = None
+    doctor_specialization: str | None = None
     
     model_config = {"from_attributes": True}
 
 class MedicalRecordCreate(BaseModel):
     patient_id: uuid.UUID
-    doctor_id: uuid.UUID
+    doctor_id: uuid.UUID | None = None
     appointment_id: uuid.UUID | None = None
     record_type: Literal["consultation", "lab_result", "prescription", "imaging", "discharge_summary"]
     title: str
-    content: dict[str, Any]
+    content: dict[str, Any] = {}
     vitals: Vitals | None = None
     lab_results: dict[str, Any] | None = None
     prescriptions: List[dict[str, Any]] | None = None
@@ -121,6 +129,10 @@ class MedicalRecordResponse(BaseModel):
     notes: str | None
     ai_analysis_task_id: uuid.UUID | None
     created_at: datetime
+    patient_name: str | None = None
+    patient_mrn: str | None = None
+    doctor_name: str | None = None
+    doctor_specialization: str | None = None
     
     model_config = {"from_attributes": True}
 
@@ -166,4 +178,29 @@ class PatientReportResponse(BaseModel):
     description: str | None
     uploaded_at: datetime
     
+    model_config = {"from_attributes": True}
+
+
+class ClinicalReviewSummary(BaseModel):
+    id: str
+    task_id: str
+    title: str
+    status: str
+    created_at: str
+    purpose: str | None = None
+    chief_complaint: str | None = None
+    approval_status: str | None = None
+    created_by: str | None = None
+    patient_id: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class PatientClinicalSummaryResponse(BaseModel):
+    patient: PatientResponse
+    records: list[MedicalRecordResponse] = []
+    prescriptions: list[PrescriptionResponse] = []
+    appointments: list[AppointmentResponse] = []
+    reviews: list[ClinicalReviewSummary] = []
+
     model_config = {"from_attributes": True}

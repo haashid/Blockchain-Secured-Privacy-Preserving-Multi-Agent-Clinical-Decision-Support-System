@@ -109,10 +109,11 @@ class TestErrorClassification:
 class TestGroqConfiguration:
     """Test Groq configuration validation."""
 
-    def test_check_groq_config(self):
+    @pytest.mark.asyncio
+    async def test_check_groq_config(self):
         """check_groq_config returns configuration status."""
         from backend.agents.llm.groq_client import check_groq_config
-        config = asyncio.get_event_loop().run_until_complete(check_groq_config())
+        config = await check_groq_config()
         assert "configured" in config
         assert "model" in config
         assert "fast_model" in config
@@ -219,7 +220,8 @@ class TestOutputSchemas:
 class TestMalformedHandling:
     """Test that malformed LLM output is properly rejected."""
 
-    def test_generate_json_rejects_invalid_json(self):
+    @pytest.mark.asyncio
+    async def test_generate_json_rejects_invalid_json(self):
         """generate_json raises RuntimeError on invalid JSON after retries."""
         from backend.agents.llm.groq_client import generate_json
 
@@ -232,12 +234,9 @@ class TestMalformedHandling:
             mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=10, total_tokens=20)
             return mock_response
 
-        async def run():
-            with patch("backend.agents.llm.groq_client.get_groq_client") as mock_get:
-                mock_client = AsyncMock()
-                mock_client.chat.completions.create = mock_create
-                mock_get.return_value = mock_client
+        with patch("backend.agents.llm.groq_client.get_groq_client") as mock_get:
+            mock_client = AsyncMock()
+            mock_client.chat.completions.create = mock_create
+            mock_get.return_value = mock_client
+            with pytest.raises(RuntimeError, match="failed after"):
                 await generate_json("system", "user", model="test", max_retries=1)
-
-        with pytest.raises(RuntimeError, match="failed after"):
-            asyncio.get_event_loop().run_until_complete(run())

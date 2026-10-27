@@ -14,16 +14,40 @@ from backend.core.config import get_settings
 
 settings = get_settings()
 
+import os
+
+_db_url = settings.DATABASE_URL
+if "postgres:5432" in _db_url and not os.path.exists("/.dockerenv") and not os.environ.get("RUNNING_IN_DOCKER"):
+    _root = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    _sqlite_path = os.path.join(_root, "multichain.db").replace("\\", "/")
+    _db_url = f"sqlite+aiosqlite:///{_sqlite_path}"
+
 _engine_kwargs = {
-    "echo": settings.APP_DEBUG,
+    "echo": False,
     "pool_pre_ping": True,
 }
-# SQLite does not support pool_size / max_overflow
-if not settings.DATABASE_URL.startswith("sqlite"):
+# SQLite specific optimization
+if _db_url.startswith("sqlite"):
+    _engine_kwargs["connect_args"] = {
+        "check_same_thread": False,
+        "timeout": 30.0,
+    }
+else:
     _engine_kwargs["pool_size"] = 10
     _engine_kwargs["max_overflow"] = 20
 
-engine = create_async_engine(settings.DATABASE_URL, **_engine_kwargs)
+engine = create_async_engine(_db_url, **_engine_kwargs)
+
+if _db_url.startswith("sqlite"):
+    from sqlalchemy import event
+
+    @event.listens_for(engine.sync_engine, "connect")
+    def _set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA busy_timeout=30000")
+        cursor.close()
 
 async_session_factory = async_sessionmaker(
     engine,
@@ -104,12 +128,10 @@ async def init_db() -> None:
     import backend.models.hospital
 
     async with engine.begin() as conn:
-        # Sync enums before create_all so new values exist for any
-        # table creation that references them.
-        try:
-            await _sync_enums(conn)
-        except Exception:
-            # Enum type doesn't exist yet — create_all will create it.
-            pass
-
         await conn.run_sync(Base.metadata.create_all)
+
+    try:
+        async with engine.begin() as conn:
+            await _sync_enums(conn)
+    except Exception:
+        pass

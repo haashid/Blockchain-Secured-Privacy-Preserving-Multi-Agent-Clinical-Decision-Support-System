@@ -28,7 +28,7 @@ class TestMockAgentExecution:
         """Mock supervisor produces valid SupervisorOutput."""
         from backend.agents.factory import create_agent
         agent = create_agent(role="supervisor", mode="mock")
-        result = asyncio.get_event_loop().run_until_complete(agent.execute(task_data))
+        result = asyncio.run(agent.execute(task_data))
         assert "required_agents" in result
         assert "complexity" in result
         assert result["complexity"] in ("low", "medium", "high", "critical")
@@ -37,7 +37,7 @@ class TestMockAgentExecution:
         """Mock clinical reasoning produces valid output."""
         from backend.agents.factory import create_agent
         agent = create_agent(role="clinical_reasoning", mode="mock")
-        result = asyncio.get_event_loop().run_until_complete(agent.execute(task_data))
+        result = asyncio.run(agent.execute(task_data))
         assert "possible_conditions" in result
         assert "confidence" in result
         assert 0.0 <= result["confidence"] <= 1.0
@@ -54,7 +54,7 @@ class TestMockAgentExecution:
 
         for role in all_roles:
             agent = create_agent(role=role, mode="mock")
-            result = asyncio.get_event_loop().run_until_complete(agent.execute(task_data))
+            result = asyncio.run(agent.execute(task_data))
             schema = AGENT_OUTPUT_TYPES.get(role)
             if schema:
                 schema.model_validate(result)  # Will raise if invalid
@@ -63,8 +63,12 @@ class TestMockAgentExecution:
 class TestMockWorkflow:
     """Test full workflow in mock mode."""
 
-    def test_workflow_completes(self):
+    def test_workflow_completes(self, monkeypatch):
         """Full workflow completes in mock mode without errors."""
+        from backend.core.config import get_settings
+        settings = get_settings()
+        monkeypatch.setattr(settings, "AI_MODE", "mock")
+        monkeypatch.setattr(settings, "AI_PROVIDER", "mock")
         from backend.orchestrator.workflow import run_workflow
 
         task_data = {
@@ -76,7 +80,7 @@ class TestMockWorkflow:
             "required_agents": ["clinical_reasoning", "verifier", "synthesizer"],
         }
 
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             run_workflow(task_id="mock-test-001", task_data=task_data, mode="centralized")
         )
 
@@ -84,8 +88,12 @@ class TestMockWorkflow:
         assert result.total_latency_ms < 1000  # Mock should be very fast
         assert result.consensus["status"] in ("accepted", "warning", "rejected")
 
-    def test_workflow_no_groq_calls(self):
+    def test_workflow_no_groq_calls(self, monkeypatch):
         """Mock workflow makes no Groq API calls."""
+        from backend.core.config import get_settings
+        settings = get_settings()
+        monkeypatch.setattr(settings, "AI_MODE", "mock")
+        monkeypatch.setattr(settings, "AI_PROVIDER", "mock")
         from backend.orchestrator.workflow import run_workflow
 
         task_data = {
@@ -97,7 +105,7 @@ class TestMockWorkflow:
             "required_agents": ["clinical_reasoning"],
         }
 
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             run_workflow(task_id="mock-test-002", task_data=task_data, mode="centralized")
         )
 

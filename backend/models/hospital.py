@@ -29,6 +29,7 @@ class Patient(Base):
     __tablename__ = "patients"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=gen_uuid)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=True, index=True)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
     date_of_birth = Column(String(50), nullable=True) # YYYY-MM-DD
@@ -48,6 +49,7 @@ class Patient(Base):
     medical_records = relationship("MedicalRecord", back_populates="patient", lazy="selectin")
     prescriptions = relationship("Prescription", back_populates="patient", lazy="selectin")
     patient_reports = relationship("PatientReport", back_populates="patient", lazy="selectin")
+    user = relationship("User", foreign_keys=[user_id], lazy="selectin")
 
 
 class Doctor(Base):
@@ -77,7 +79,7 @@ class Appointment(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=gen_uuid)
     patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False, index=True)
     doctor_id = Column(UUID(as_uuid=True), ForeignKey("doctors.id"), nullable=False, index=True)
-    scheduled_at = Column(DateTime(timezone=True), nullable=False)
+    scheduled_at = Column(DateTime(timezone=True), nullable=False, index=True)
     duration_minutes = Column(Integer, default=30, nullable=False)
     status = Column(Enum("scheduled", "in_progress", "completed", "cancelled", name="appointment_status"), default="scheduled", nullable=False)
     chief_complaint = Column(Text, nullable=True)
@@ -97,7 +99,7 @@ class MedicalRecord(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=gen_uuid)
     patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False, index=True)
-    doctor_id = Column(UUID(as_uuid=True), ForeignKey("doctors.id"), nullable=False)
+    doctor_id = Column(UUID(as_uuid=True), ForeignKey("doctors.id"), nullable=False, index=True)
     appointment_id = Column(UUID(as_uuid=True), ForeignKey("appointments.id"), nullable=True)
     record_type = Column(Enum("consultation", "lab_result", "prescription", "imaging", "discharge_summary", name="record_type"), nullable=False)
     title = Column(String(200), nullable=False)
@@ -108,7 +110,7 @@ class MedicalRecord(Base):
     diagnosis_codes = Column(JSON, nullable=True)
     notes = Column(Text, nullable=True)
     ai_analysis_task_id = Column(UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=True)
-    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False, index=True)
 
     patient = relationship("Patient", back_populates="medical_records", lazy="selectin")
     doctor = relationship("Doctor", back_populates="medical_records", lazy="selectin")
@@ -121,13 +123,13 @@ class Prescription(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=gen_uuid)
     medical_record_id = Column(UUID(as_uuid=True), ForeignKey("medical_records.id"), nullable=False)
     patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False, index=True)
-    doctor_id = Column(UUID(as_uuid=True), ForeignKey("doctors.id"), nullable=False)
+    doctor_id = Column(UUID(as_uuid=True), ForeignKey("doctors.id"), nullable=False, index=True)
     medication_name = Column(String(200), nullable=False)
     dosage = Column(String(100), nullable=False)
     frequency = Column(String(100), nullable=False)
     duration = Column(String(100), nullable=True)
     instructions = Column(Text, nullable=True)
-    is_active = Column(Boolean, default=True, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
     prescribed_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     patient = relationship("Patient", back_populates="prescriptions", lazy="selectin")
@@ -149,3 +151,83 @@ class PatientReport(Base):
 
     patient = relationship("Patient", back_populates="patient_reports", lazy="selectin")
     user = relationship("User", lazy="selectin")
+
+
+class ClinicalReview(Base):
+    """Structured clinical review record linking a Task/Run to a patient and doctor,
+    with full approval/release lifecycle separate from the AI execution state."""
+    __tablename__ = "clinical_reviews"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=gen_uuid)
+    task_id = Column(UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=False, index=True)
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False, index=True)
+    doctor_id = Column(UUID(as_uuid=True), ForeignKey("doctors.id"), nullable=False, index=True)
+
+    # Review metadata
+    purpose = Column(String(200), nullable=False)
+    chief_complaint = Column(Text, nullable=False)
+    review_type = Column(
+        Enum(
+            "comprehensive", "laboratory", "medication_safety", "risk_assessment", "follow_up",
+            name="review_type"
+        ),
+        nullable=False,
+        default="comprehensive",
+    )
+
+    # Approval lifecycle
+    approval_status = Column(
+        Enum(
+            "DRAFT", "AWAITING_REVIEW", "APPROVED", "REJECTED", "RELEASED",
+            name="approval_status"
+        ),
+        nullable=False,
+        default="DRAFT",
+        index=True,
+    )
+    approved_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    released_at = Column(DateTime(timezone=True), nullable=True)
+    rejected_at = Column(DateTime(timezone=True), nullable=True)
+    rejection_reason = Column(Text, nullable=True)
+
+    # Report versions — AI draft is never modified, clinician version captures edits
+    ai_draft_report = Column(JSON, nullable=True)
+    clinician_edited_report = Column(JSON, nullable=True)
+    clinician_notes = Column(Text, nullable=True)
+
+    # Patient-facing summary generated from approved report
+    patient_friendly_summary = Column(Text, nullable=True)
+
+    # Prescription issued from this review
+    prescription_id = Column(UUID(as_uuid=True), ForeignKey("prescriptions.id"), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False, index=True)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+
+    # Relationships
+    patient = relationship("Patient", lazy="selectin")
+    doctor = relationship("Doctor", lazy="selectin")
+    approver = relationship("User", foreign_keys=[approved_by], lazy="selectin")
+    prescription = relationship("Prescription", foreign_keys=[prescription_id], lazy="selectin")
+
+
+class PatientNotification(Base):
+    """In-app notification for patients — triggered when a review is released or prescription issued."""
+    __tablename__ = "patient_notifications"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=gen_uuid)
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False, index=True)
+    notification_type = Column(
+        Enum("review_released", "prescription_issued", "appointment_scheduled", "general",
+             name="notification_type"),
+        nullable=False,
+        default="general",
+    )
+    title = Column(String(300), nullable=False)
+    message = Column(Text, nullable=False)
+    reference_id = Column(UUID(as_uuid=True), nullable=True)  # review_id or prescription_id
+    is_read = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    patient = relationship("Patient", lazy="selectin")

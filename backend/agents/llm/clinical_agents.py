@@ -11,7 +11,9 @@ from typing import Any
 
 from backend.agents.llm.llm_base import LLMAgent
 from backend.core.config import get_settings
+from backend.core.logging_config import get_logger
 
+logger = get_logger("clinical_agents")
 settings = get_settings()
 
 
@@ -240,7 +242,14 @@ class GroqEvidenceAgent(LLMAgent):
         rag_service = get_rag_service()
 
         # Retrieve evidence
-        rag_result = await rag_service.search(task, context)
+        try:
+            rag_result = await rag_service.search(task, context)
+        except Exception as e:
+            logger.warning("rag_retrieval_fallback", error=str(e))
+            result = await self._execute_without_rag(task, context)
+            result["insufficient_evidence"] = True
+            result["knowledge_gaps"] = [f"RAG evidence service temporarily unavailable: {str(e)}"]
+            return result
 
         if rag_result.insufficient_evidence:
             # No evidence found — return explicit insufficient evidence result

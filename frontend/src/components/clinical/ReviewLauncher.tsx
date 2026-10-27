@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { cn } from '../../lib/utils';
-import { privacyApi, clinicalApi, REVIEW_PURPOSES, ClinicalPatient } from '../../lib/clinicalApi';
+import { privacyApi, clinicalApi, REVIEW_PURPOSES } from '../../lib/clinicalApi';
+import type { ClinicalPatient } from '../../lib/clinicalApi';
 import {
   ShieldCheck, ShieldAlert, ChevronRight, ChevronLeft, Loader2, Play,
   Database, Stethoscope, KeyRound, FileCheck2, Users,
@@ -50,6 +51,8 @@ export default function ReviewLauncher({ patient, onStarted }: Props) {
     });
   }, [consent]);
 
+  const queryClient = useQueryClient();
+
   const startMutation = useMutation({
     mutationFn: () =>
       clinicalApi.start({
@@ -59,7 +62,11 @@ export default function ReviewLauncher({ patient, onStarted }: Props) {
         symptoms: symptoms.split(',').map((s) => s.trim()).filter(Boolean),
         vitals: null,
       }),
-    onSuccess: (data) => onStarted(data.clinical_review_id),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['clinicalReviews'] });
+      queryClient.invalidateQueries({ queryKey: ['patientReviews', patient.id] });
+      onStarted(data.clinical_review_id);
+    },
   });
 
   return (

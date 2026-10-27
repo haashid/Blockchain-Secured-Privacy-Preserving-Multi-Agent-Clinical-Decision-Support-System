@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from typing import Any
 
@@ -123,7 +124,10 @@ async def request_ai_analysis(
                 traceback.print_exc()
                 await bg_db.rollback()
     
-    background_tasks.add_task(bg_workflow_runner)
+    if background_tasks:
+        background_tasks.add_task(bg_workflow_runner)
+    else:
+        asyncio.create_task(bg_workflow_runner())
     
     return {
         "task_id": str(task.id),

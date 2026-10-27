@@ -1,5 +1,5 @@
 import { cn } from '../../lib/utils';
-import { AgentExecution } from '../../lib/clinicalApi';
+import type { AgentExecution } from '../../lib/clinicalApi';
 import { AgentStatusBadge, ConfidenceMeter, agentLabel } from './StatusBadges';
 import { ArrowDown, GitBranch, RotateCcw, ShieldCheck, Sparkles } from 'lucide-react';
 

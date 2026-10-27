@@ -97,10 +97,10 @@ class CriticOutput(BaseModel):
     issues: list[dict[str, Any]] = []
     contradictions: list[str] = []
     missing_evidence: list[str] = []
-    severity: Literal["low", "medium", "high", "critical"]
+    severity: Literal["low", "medium", "high", "critical"] = "low"
     requires_reanalysis: bool = False
     target_agents: list[str] = []
-    confidence: float = Field(ge=0.0, le=1.0)
+    confidence: float = Field(default=0.85, ge=0.0, le=1.0)
 
 
 class VerificationOutput(BaseModel):
@@ -132,7 +132,7 @@ class SynthesisOutput(BaseModel):
         "AI-generated clinical decision support. "
         "Final clinical decisions remain with qualified healthcare professionals."
     )
-    confidence: float = Field(ge=0.0, le=1.0)
+    confidence: float = Field(default=0.85, ge=0.0, le=1.0)
 
 
 # ─── Output type map ────────────────────────────────────────────────

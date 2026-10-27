@@ -42,6 +42,7 @@ from backend.api.hospital import router as hospital_router
 from backend.api.knowledge import router as knowledge_router
 from backend.api.clinical import router as clinical_router
 from backend.api.privacy import router as privacy_router
+from backend.api.zkp import router as zkp_router
 
 settings = get_settings()
 setup_logging(settings.APP_LOG_LEVEL)
@@ -112,6 +113,7 @@ app.include_router(hospital_router)
 app.include_router(knowledge_router)
 app.include_router(clinical_router)
 app.include_router(privacy_router)
+app.include_router(zkp_router)
 
 # ─── Error Handler ──────────────────────────────────────────────────
 @app.exception_handler(HTTPException)
@@ -511,24 +513,85 @@ async def api_list_benchmarks(
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+    return {
+        "status": "ok",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "env": settings.APP_ENV,
+        "ai_mode": settings.AI_MODE,
+        "ai_provider": settings.AI_PROVIDER,
+    }
 
 
 @app.get("/api/ready")
 async def ready(db: Annotated[AsyncSession, Depends(get_db)]):
-    checks = {"database": "ok", "storage": "ok", "fabric": "connected", "ai_provider": "ok"}
+    from backend.storage.factory import get_storage_status
+    from backend.blockchain.gateway import get_fabric_service
+    from backend.knowledge.service import get_rag_service
+
+    checks: dict[str, Any] = {
+        "database": "ok",
+        "storage": "ok",
+        "fabric": "connected",
+        "rag": "ready",
+        "ai_provider": settings.AI_PROVIDER,
+    }
+
+    # 1. Database check
     try:
         await db.execute(select(func.count()).select_from(User))
-    except Exception:
-        checks["database"] = "error"
+    except Exception as e:
+        checks["database"] = f"error: {e}"
 
-    # Mock fabric connection for frontend demonstration
-    # fabric = get_fabric_service()
-    # checks["fabric"] = "connected" if fabric.is_connected else "disconnected"
+    # 2. Storage check
+    try:
+        storage_status = get_storage_status()
+        checks["storage"] = storage_status.get("status", "unknown")
+        checks["storage_details"] = {
+            "active_provider": storage_status.get("active_provider"),
+            "configured_provider": storage_status.get("configured_provider"),
+            "is_fallback": storage_status.get("is_fallback", False),
+        }
+    except Exception as e:
+        checks["storage"] = f"error: {e}"
 
-    all_ok = checks["database"] == "ok"
+    # 3. Fabric check
+    try:
+        fabric = get_fabric_service()
+        net_status = await fabric.get_network_status()
+        checks["fabric"] = net_status.get("connection_status", "unknown")
+        checks["fabric_details"] = {
+            "is_simulated": net_status.get("is_simulated", False),
+            "fabric_sdk_mode": net_status.get("fabric_sdk_mode"),
+            "network": net_status.get("network"),
+        }
+    except Exception as e:
+        checks["fabric"] = f"error: {e}"
+
+    # 4. RAG check
+    try:
+        rag = get_rag_service()
+        rag_health = rag.health()
+        checks["rag"] = rag_health.get("readiness", "unknown")
+        checks["rag_details"] = {
+            "enabled": rag_health.get("enabled", True),
+            "cached": rag_health.get("cached", False),
+            "documents": rag_health.get("document_count", 0),
+            "chunks": rag_health.get("chunk_count", 0),
+        }
+    except Exception as e:
+        checks["rag"] = f"error: {e}"
+
+    is_degraded = (
+        checks.get("storage_details", {}).get("is_fallback", False)
+        or checks.get("fabric_details", {}).get("is_simulated", False)
+        or checks.get("rag") == "INITIALIZING"
+    )
+    is_failing = checks["database"] != "ok" or checks["rag"] == "FAILED" or checks["storage"] == "failed"
+
+    status_str = "unhealthy" if is_failing else ("degraded" if is_degraded else "ready")
     return {
-        "status": "ready" if all_ok else "degraded",
+        "status": status_str,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         **checks,
     }
 

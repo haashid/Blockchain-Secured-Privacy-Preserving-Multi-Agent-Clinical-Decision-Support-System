@@ -1,5 +1,6 @@
 """Hyperledger Fabric Gateway adapter service."""
 
+import asyncio
 import hashlib
 import json
 from datetime import datetime, timezone
@@ -34,35 +35,56 @@ class FabricGatewayService:
         self._ledger_data: dict[str, Any] = {}
 
     async def connect(self) -> bool:
-        """Attempt to connect to Fabric gateway, fallback to simulation."""
-        try:
-            import grpc
-            from fabric_gateway import DefaultSigners, Gateway, DefaultIdentity
-            
-            # Setup real connection if fabric_gateway is available and configured
-            if self.settings.FABRIC_CERT_PATH:
-                with open(self.settings.FABRIC_CERT_PATH, "rb") as f:
-                    certificate_pem = f.read()
-                
-                credentials = grpc.ssl_channel_credentials(certificate_pem)
-                channel = grpc.aio.secure_channel(self.settings.FABRIC_GATEWAY_ENDPOINT, credentials)
-                
-                identity = DefaultIdentity(self.settings.FABRIC_ORG1_MSP, certificate_pem)
-                self._gateway = Gateway(
-                    connection=channel,
-                    identity=identity,
-                    signer=DefaultSigners.from_private_key_file(self.settings.FABRIC_KEY_PATH)
-                )
-                self._network = self._gateway.get_network(self.settings.FABRIC_CHANNEL)
-                self._contract = self._network.get_contract(self.settings.FABRIC_CHAINCODE)
+        """Attempt to connect to Fabric gateway with bounded timeout, fallback to simulation."""
+        timeout = getattr(self.settings, "FABRIC_CONNECT_TIMEOUT_SECONDS", 3.0)
+        require_native = getattr(self.settings, "FABRIC_REQUIRE_BLOCKCHAIN", False)
+
+        if self.settings.FABRIC_CERT_PATH:
+            try:
+                async def _do_connect():
+                    import grpc
+                    from fabric_gateway import DefaultSigners, Gateway, DefaultIdentity
+
+                    with open(self.settings.FABRIC_CERT_PATH, "rb") as f:
+                        certificate_pem = f.read()
+
+                    credentials = grpc.ssl_channel_credentials(certificate_pem)
+                    channel = grpc.aio.secure_channel(self.settings.FABRIC_GATEWAY_ENDPOINT, credentials)
+
+                    identity = DefaultIdentity(self.settings.FABRIC_ORG1_MSP, certificate_pem)
+                    gw = Gateway(
+                        connection=channel,
+                        identity=identity,
+                        signer=DefaultSigners.from_private_key_file(self.settings.FABRIC_KEY_PATH)
+                    )
+                    net = gw.get_network(self.settings.FABRIC_CHANNEL)
+                    ctr = net.get_contract(self.settings.FABRIC_CHAINCODE)
+                    return gw, net, ctr
+
+                self._gateway, self._network, self._contract = await asyncio.wait_for(_do_connect(), timeout=timeout)
                 self._connected = True
                 self._simulation_mode = False
-                logger.info("fabric_connected", mode="native")
+                logger.info("fabric_connected", mode="native", endpoint=self.settings.FABRIC_GATEWAY_ENDPOINT)
                 return True
-        except ImportError:
-            pass
-        except Exception as e:
-            logger.warning("fabric_native_connection_failed", error=str(e))
+            except asyncio.TimeoutError:
+                logger.warning("fabric_native_connection_timeout", timeout_seconds=timeout)
+                if require_native:
+                    self._connected = False
+                    raise ConnectionError(f"Hyperledger Fabric gateway connection timed out after {timeout}s.")
+            except ImportError:
+                logger.info("fabric_gateway_sdk_not_installed")
+                if require_native:
+                    self._connected = False
+                    raise ConnectionError("fabric_gateway SDK not installed and native blockchain is required.")
+            except Exception as e:
+                logger.warning("fabric_native_connection_failed", error=str(e))
+                if require_native:
+                    self._connected = False
+                    raise ConnectionError(f"Hyperledger Fabric connection failed: {e}")
+
+        if require_native:
+            self._connected = False
+            raise ConnectionError("Native Hyperledger Fabric connection is required but no valid credentials or endpoints were reachable.")
 
         # Fallback to Local Simulation Mode
         logger.info("fabric_connected", mode="simulation")
@@ -126,9 +148,14 @@ class FabricGatewayService:
             raise ConnectionError("Fabric network not connected")
         
         if self._simulation_mode:
+            if getattr(self.settings, "FABRIC_REQUIRE_BLOCKCHAIN", False):
+                raise RuntimeError("Operation requires native Hyperledger Fabric ledger, but gateway is in simulation mode.")
             tx_id = self._generate_simulated_tx("proof", proof_data)
             self._ledger_data[tx_id] = {"type": "proof", "data": proof_data, "timestamp": datetime.now(timezone.utc).isoformat()}
             block_num = self._simulated_blocks
+            status = "simulated_committed"
+            is_sim = True
+            ledger_mode = "simulation"
         elif self._contract:
             result = await self._contract.submit_transaction(
                 "RecordDecisionProof",
@@ -140,12 +167,19 @@ class FabricGatewayService:
             )
             tx_id = f"tx-proof-{proof_data.get('proof_id', 'unknown')}"
             block_num = None
+            status = "committed"
+            is_sim = False
+            ledger_mode = "native"
+        else:
+            raise ConnectionError("No active Fabric contract available.")
             
-        logger.info("fabric_record_proof", proof_id=proof_data.get("proof_id"))
+        logger.info("fabric_record_proof", proof_id=proof_data.get("proof_id"), status=status, mode=ledger_mode)
         return {
             "tx_id": tx_id,
             "block_number": block_num,
-            "status": "committed",
+            "status": status,
+            "is_simulated": is_sim,
+            "ledger_mode": ledger_mode,
         }
 
     async def get_decision_proof(self, proof_id: str) -> dict[str, Any] | None:
@@ -237,7 +271,10 @@ class FabricGatewayService:
             "peer_count": 4 if self._simulation_mode else 2,
             "transaction_count": tx_count,
             "gateway_endpoint": "simulation.hyperledger.local" if self._simulation_mode else self.settings.FABRIC_GATEWAY_ENDPOINT,
-            "fabric_sdk_mode": "simulation" if self._simulation_mode else ("native" if self._contract else "disconnected")
+            "fabric_sdk_mode": "simulation" if self._simulation_mode else ("native" if self._contract else "disconnected"),
+            "is_simulated": self._simulation_mode,
+            "connection_status": "simulation_active" if self._simulation_mode else ("connected" if self._connected else "disconnected"),
+            "require_blockchain": getattr(self.settings, "FABRIC_REQUIRE_BLOCKCHAIN", False),
         }
 
 
