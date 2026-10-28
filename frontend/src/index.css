@@ -40,7 +40,9 @@
   --accent-hover: #3b82f6;
   
   --status-healthy: #10b981;
-  --status-warning: #f59e0b;
+  --status-warning: #b45309;
+  --status-warning-bg: #fef3c7;
+  --status-warning-border: #fcd34d;
   --status-danger: #ef4444;
   --status-info: #3b82f6;
 }
@@ -148,6 +150,11 @@ body {
   }
   
   .badge-warning {
+    background-color: var(--status-warning-bg, #fef3c7);
+    color: var(--status-warning, #b45309);
+    border: 1px solid var(--status-warning-border, #fcd34d);
+  }
+  .admin-theme .badge-warning {
     background-color: color-mix(in srgb, var(--status-warning) 15%, transparent);
     color: var(--status-warning);
     border: 1px solid color-mix(in srgb, var(--status-warning) 30%, transparent);

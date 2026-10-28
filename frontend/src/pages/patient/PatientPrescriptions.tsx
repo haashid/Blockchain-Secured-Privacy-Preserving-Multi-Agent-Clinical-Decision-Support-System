@@ -27,11 +27,11 @@ export default function PatientPrescriptions() {
       </div>
 
       {/* Safety Notice */}
-      <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 flex items-start gap-3">
-        <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+      <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs flex items-start gap-3 shadow-sm">
+        <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <p className="font-bold text-amber-300">Medication Safety Guidance</p>
-          <p className="text-amber-100/90 leading-relaxed">
+          <p className="font-bold text-amber-900 text-[13px]">Medication Safety Guidance</p>
+          <p className="text-amber-800 leading-relaxed font-medium">
             Always take medications exactly as instructed by your physician. If you experience unexpected side effects, dizziness, or allergic reactions, contact your doctor immediately or visit urgent care.
           </p>
         </div>

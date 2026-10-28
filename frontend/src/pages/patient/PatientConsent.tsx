@@ -108,7 +108,7 @@ export default function PatientConsent() {
             />
             <div className="space-y-0.5">
               <p className="font-bold text-[var(--text-primary)] text-xs flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
                 Emergency Break-Glass Authorization
               </p>
               <p className="text-xs text-[var(--text-muted)] leading-relaxed">

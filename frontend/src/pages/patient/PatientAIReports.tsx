@@ -135,11 +135,11 @@ export default function PatientAIReports() {
 
                     {/* Clinician Notes */}
                     {report.clinician_notes && (
-                      <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 space-y-1">
-                        <p className="font-bold flex items-center gap-1.5">
-                          <Stethoscope className="w-4 h-4 text-amber-400" /> Doctor's Direct Notes:
+                      <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs space-y-1.5 shadow-sm">
+                        <p className="font-bold flex items-center gap-1.5 text-amber-900">
+                          <Stethoscope className="w-4 h-4 text-amber-700" /> Doctor's Direct Notes:
                         </p>
-                        <p className="leading-relaxed text-amber-100 italic">
+                        <p className="leading-relaxed text-amber-950 font-medium italic">
                           "{report.clinician_notes}"
                         </p>
                       </div>

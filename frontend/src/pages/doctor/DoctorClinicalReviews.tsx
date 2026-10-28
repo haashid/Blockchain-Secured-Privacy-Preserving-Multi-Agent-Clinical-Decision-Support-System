@@ -218,7 +218,7 @@ export default function DoctorClinicalReviews() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: 'Total Reviews', value: stats.total, icon: FileText, color: 'text-indigo-400' },
-          { label: 'Pending Approval', value: stats.pending, icon: Clock, color: 'text-amber-400' },
+          { label: 'Pending Approval', value: stats.pending, icon: Clock, color: 'text-amber-600' },
           { label: 'Doctor Approved', value: stats.approved, icon: CheckCircle2, color: 'text-emerald-400' },
           { label: 'Released to Patient', value: stats.released, icon: Send, color: 'text-sky-400' },
         ].map(s => (

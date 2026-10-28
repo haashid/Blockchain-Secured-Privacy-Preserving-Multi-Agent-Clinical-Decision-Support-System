@@ -86,7 +86,7 @@ export default function DoctorDashboard() {
           title="Pending Clinical Reviews"
           value={pendingReviews.length}
           icon={Brain}
-          colorClass="text-amber-400"
+          colorClass="text-amber-600"
           to="/doctor/reviews"
         />
         <MetricCard

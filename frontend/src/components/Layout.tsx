@@ -5,6 +5,8 @@ import {
   Brain, FileText, Calendar, Pill, Stethoscope, HeartPulse, Search, Bell, Menu
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { patientsApi, doctorsApi } from '../lib/hospitalApi';
 
 const adminNav = [
   { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Command Center', section: 'Overview' },
@@ -46,13 +48,53 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const role = localStorage.getItem('user_role') || 'admin';
+  const token = localStorage.getItem('token');
+  const storedUsername = localStorage.getItem('username');
+
+  // Load patient profile if logged in as patient
+  const { data: myPatient } = useQuery({
+    queryKey: ['myPatientRecord'],
+    queryFn: patientsApi.myRecord,
+    enabled: role === 'patient' && !!token,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Load doctor profile if logged in as doctor
+  const { data: myDoctor } = useQuery({
+    queryKey: ['myDoctorRecord'],
+    queryFn: doctorsApi.myDoctor,
+    enabled: role === 'doctor' && !!token,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Determine user display name based on authenticated profile
+  const userName = (() => {
+    if (role === 'patient') {
+      if (myPatient?.first_name && myPatient?.last_name) {
+        return `${myPatient.first_name} ${myPatient.last_name}`;
+      }
+      return 'John Smith';
+    }
+    if (role === 'doctor') {
+      if (myDoctor?.first_name && myDoctor?.last_name) {
+        return `Dr. ${myDoctor.first_name} ${myDoctor.last_name}`;
+      }
+      return 'Dr. Robert Jenkins';
+    }
+    if (storedUsername && storedUsername !== 'admin') {
+      return storedUsername;
+    }
+    return 'Administrator';
+  })();
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user_role');
+    localStorage.removeItem('username');
     navigate('/login');
   };
 
-  const role = localStorage.getItem('user_role') || 'admin';
   const nav = role === 'doctor' ? doctorNav : role === 'patient' ? patientNav : adminNav;
   const meta = roleMeta[role] || roleMeta.admin;
 
@@ -150,7 +192,7 @@ export default function Layout() {
                 <meta.icon className="w-4 h-4 text-white" />
               </div>
               <div className="min-w-0">
-                <p className="text-[13px] font-bold text-[var(--text-primary)] truncate leading-tight">Dr. Sarah Jenkins</p>
+                <p className="text-[13px] font-bold text-[var(--text-primary)] truncate leading-tight">{userName}</p>
                 <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{meta.label}</p>
               </div>
             </div>
@@ -213,7 +255,9 @@ export default function Layout() {
             <div className="h-6 w-px bg-[var(--border-strong)]" />
             
             <div className="flex flex-col items-end">
-              <span className="text-[13px] font-semibold text-[var(--text-primary)] leading-tight">{meta.org}</span>
+              <span className="text-[13px] font-semibold text-[var(--text-primary)] leading-tight">
+                {role === 'doctor' && myDoctor?.department ? `${myDoctor.department} Dept` : meta.org}
+              </span>
               <span className="text-[11px] text-[var(--text-muted)] leading-tight">{meta.label} Access</span>
             </div>
           </div>

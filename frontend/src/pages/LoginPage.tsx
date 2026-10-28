@@ -30,6 +30,7 @@ export default function LoginPage() {
       const res = await authApi.login(username, password);
       localStorage.setItem('token', res.access_token);
       localStorage.setItem('user_role', res.role || 'admin');
+      localStorage.setItem('username', username);
       const role = res.role || 'admin';
       if (role === 'doctor') navigate('/doctor/dashboard');
       else if (role === 'patient') navigate('/patient/dashboard');

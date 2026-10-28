@@ -176,7 +176,7 @@ export default function DoctorRecords() {
         {[
           { label: 'Total Records', value: totalCount, icon: FileText, color: 'text-indigo-400' },
           { label: 'Consultations', value: consultationCount, icon: Stethoscope, color: 'text-sky-400' },
-          { label: 'Laboratory Panels', value: labsCount, icon: FlaskConical, color: 'text-amber-400' },
+          { label: 'Laboratory Panels', value: labsCount, icon: FlaskConical, color: 'text-amber-600' },
           { label: 'Imaging & Diagnostics', value: imagingCount, icon: Activity, color: 'text-purple-400' },
         ].map((s) => (
           <div key={s.label} className="panel p-4 flex items-center gap-4">
@@ -260,7 +260,7 @@ export default function DoctorRecords() {
                       className={cn(
                         'w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border font-bold',
                         isLab
-                          ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                          ? 'bg-amber-50 border-amber-300 text-amber-700'
                           : isImaging
                           ? 'bg-purple-500/10 border-purple-500/30 text-purple-400'
                           : 'bg-sky-500/10 border-sky-500/30 text-sky-400'
@@ -381,7 +381,12 @@ export default function DoctorRecords() {
                             <td className="p-2.5 text-right text-[var(--text-muted)]">{item.reference || '—'}</td>
                             <td className="p-2.5 text-center">
                               {item.flag && item.flag !== 'NORMAL' ? (
-                                <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                                <span className={cn(
+                                  "text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border",
+                                  item.flag === 'HIGH' ? "bg-rose-50 text-rose-700 border-rose-200" :
+                                  item.flag === 'LOW' ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                  "bg-amber-50 text-amber-800 border-amber-300 font-bold"
+                                )}>
                                   {item.flag}
                                 </span>
                               ) : (

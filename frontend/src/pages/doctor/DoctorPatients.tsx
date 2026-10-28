@@ -24,12 +24,19 @@ const WORKSPACE_TABS = [
 
 type WorkspaceTab = typeof WORKSPACE_TABS[number]['id'];
 
-function flagColor(flag: string | null | undefined) {
+function flagBadgeClass(flag: string | null | undefined) {
   if (!flag) return 'text-[var(--text-muted)]';
-  if (flag === 'HIGH') return 'text-red-400 font-bold';
-  if (flag === 'LOW') return 'text-amber-400 font-bold';
-  if (flag === 'BORDERLINE') return 'text-yellow-400 font-bold';
+  if (flag === 'HIGH') return 'text-rose-700 bg-rose-50 border border-rose-200 font-bold';
+  if (flag === 'LOW') return 'text-blue-700 bg-blue-50 border border-blue-200 font-bold';
+  if (flag === 'BORDERLINE') return 'text-amber-800 bg-amber-50 border border-amber-300 font-bold';
   return 'text-[var(--text-muted)]';
+}
+
+function flagTextColor(flag: string | null | undefined) {
+  if (flag === 'HIGH') return 'text-rose-600 font-bold';
+  if (flag === 'LOW') return 'text-blue-600 font-bold';
+  if (flag === 'BORDERLINE') return 'text-amber-700 font-bold';
+  return 'text-[var(--text-primary)]';
 }
 
 // ─── Lab Results Panel ───────────────────────────────────────────────
@@ -88,12 +95,12 @@ function LabResultsPanel({ records }: { records: any[] }) {
                 {Object.entries(rec.lab_results || {}).map(([name, data]: [string, any]) => (
                   <tr key={name} className="hover:bg-[var(--bg-panel-hover)]">
                     <td className="py-2.5 text-sm font-semibold text-[var(--text-primary)] capitalize">{name.replace(/_/g,' ')}</td>
-                    <td className={cn("py-2.5 text-sm text-right font-mono", data.flag && data.flag !== 'NORMAL' ? flagColor(data.flag) : 'text-[var(--text-primary)]')}>{data.value}</td>
+                    <td className={cn("py-2.5 text-sm text-right font-mono", flagTextColor(data.flag))}>{data.value}</td>
                     <td className="py-2.5 text-xs text-[var(--text-muted)] text-right font-mono">{data.unit}</td>
                     <td className="py-2.5 text-xs text-[var(--text-muted)] text-right font-mono">{data.reference || '—'}</td>
                     <td className="py-2.5 text-center">
                       {data.flag ? (
-                        <span className={cn("text-[10px] font-bold uppercase px-1.5 py-0.5 rounded", flagColor(data.flag))}>
+                        <span className={cn("text-[10px] font-bold uppercase px-1.5 py-0.5 rounded", flagBadgeClass(data.flag))}>
                           {data.flag}
                         </span>
                       ) : <span className="text-[var(--text-muted)] text-xs">—</span>}

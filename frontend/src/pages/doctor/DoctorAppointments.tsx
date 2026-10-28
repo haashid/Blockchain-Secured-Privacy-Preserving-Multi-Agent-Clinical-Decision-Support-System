@@ -171,7 +171,7 @@ export default function DoctorAppointments() {
         {[
           { label: 'Total Consultations', value: totalCount, icon: Calendar, color: 'text-indigo-400' },
           { label: 'Upcoming Scheduled', value: scheduledCount, icon: Clock, color: 'text-sky-400' },
-          { label: 'In Consultation', value: inProgressCount, icon: Play, color: 'text-amber-400' },
+          { label: 'In Consultation', value: inProgressCount, icon: Play, color: 'text-amber-600' },
           { label: 'Completed Visits', value: completedCount, icon: CheckCircle2, color: 'text-emerald-400' },
         ].map((s) => (
           <div key={s.label} className="panel p-4 flex items-center gap-4">
@@ -256,7 +256,7 @@ export default function DoctorAppointments() {
                     className={cn(
                       'w-12 h-12 rounded-2xl flex flex-col items-center justify-center shrink-0 border font-bold',
                       appt.status === 'in_progress'
-                        ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 animate-pulse'
+                        ? 'bg-amber-50 border-amber-300 text-amber-700 animate-pulse'
                         : appt.status === 'completed'
                         ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                         : 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/20 text-[var(--accent-primary)]'
@@ -327,7 +327,7 @@ export default function DoctorAppointments() {
                     <button
                       onClick={() => statusMutation.mutate({ id: appt.id, status: 'in_progress' })}
                       disabled={statusMutation.isPending}
-                      className="btn-primary text-xs py-1.5 px-3 bg-amber-500 hover:bg-amber-600 border-amber-600"
+                      className="btn-primary text-xs py-1.5 px-3 bg-amber-600 hover:bg-amber-700 border-amber-700 text-white font-medium"
                     >
                       <Play className="w-3.5 h-3.5 mr-1.5" /> Start Visit
                     </button>
@@ -480,7 +480,7 @@ export default function DoctorAppointments() {
                           ? p === 'emergency'
                             ? 'bg-rose-500/20 text-rose-400 border-rose-500/40'
                             : p === 'urgent'
-                            ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                            ? 'bg-amber-50 text-amber-800 border-amber-300 font-bold'
                             : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
                           : 'bg-[var(--bg-panel-hover)] text-[var(--text-muted)] border-[var(--border-subtle)]'
                       )}

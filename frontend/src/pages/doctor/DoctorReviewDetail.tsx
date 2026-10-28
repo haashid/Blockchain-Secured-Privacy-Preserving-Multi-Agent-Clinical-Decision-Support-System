@@ -255,7 +255,7 @@ export default function DoctorReviewDetail() {
                 });
                 setShowPrescriptionModal(true);
               }}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-all flex items-center gap-1.5"
+              className="px-4 py-2 rounded-xl text-xs font-bold text-amber-700 bg-amber-50 border border-amber-300 hover:bg-amber-100 transition-all flex items-center gap-1.5"
             >
               <Pill className="w-4 h-4" /> Issue Prescription
             </button>
@@ -387,7 +387,7 @@ export default function DoctorReviewDetail() {
             {/* Risk Stratification */}
             <div className="panel p-6 space-y-4">
               <h3 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-400" /> Risk Stratification
+                <AlertTriangle className="w-4 h-4 text-amber-600" /> Risk Stratification
               </h3>
               <div className="space-y-3">
                 {riskFactors.map((r: any, idx: number) => (
@@ -405,12 +405,12 @@ export default function DoctorReviewDetail() {
             </div>
 
             {/* Medication Safety & Drug Interactions */}
-            <div className="panel p-6 space-y-4 border-amber-500/20 bg-amber-500/5">
-              <h3 className="text-sm font-bold text-amber-300 uppercase tracking-wider flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-400" /> Medication Safety & Interactions
+            <div className="panel p-6 space-y-4 border-amber-200 bg-amber-50/50">
+              <h3 className="text-sm font-bold text-amber-900 uppercase tracking-wider flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-700" /> Medication Safety & Interactions
               </h3>
-              <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs text-amber-200 leading-relaxed">
-                <strong>Safety Alert:</strong> {medicationSafety.alert}
+              <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-100/70 text-xs text-amber-950 font-medium leading-relaxed">
+                <strong className="text-amber-900">Safety Alert:</strong> {medicationSafety.alert}
               </div>
               <div className="space-y-2 text-xs">
                 <p className="font-semibold text-[var(--text-secondary)]">Recommendations:</p>
@@ -892,8 +892,8 @@ export default function DoctorReviewDetail() {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl animate-fade-in">
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-              <h3 className="text-lg font-bold text-amber-300 flex items-center gap-2">
-                <Pill className="w-5 h-5 text-amber-400" /> Issue Clinical Prescription
+              <h3 className="text-lg font-bold text-amber-900 flex items-center gap-2">
+                <Pill className="w-5 h-5 text-amber-700" /> Issue Clinical Prescription
               </h3>
               <button onClick={() => setShowPrescriptionModal(false)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
                 ✕
