@@ -112,9 +112,14 @@ export default function DoctorDashboard() {
                 <p className="text-[11px] text-[var(--text-muted)] font-medium">Scheduled patient consultations</p>
               </div>
             </div>
-            <Link to="/doctor/appointments" className="text-xs font-bold text-[var(--accent-primary)] hover:underline">
-              View all
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link to="/doctor/appointments?schedule=true" className="text-xs font-bold text-[var(--accent-primary)] hover:underline">
+                + Schedule
+              </Link>
+              <Link to="/doctor/appointments" className="text-xs font-bold text-[var(--text-muted)] hover:underline">
+                View all
+              </Link>
+            </div>
           </div>
 
           <div className="flex-1 divide-y divide-[var(--border-subtle)]">
@@ -146,7 +151,7 @@ export default function DoctorDashboard() {
               <div className="p-8 text-center flex flex-col items-center justify-center">
                 <Calendar className="w-8 h-8 text-[var(--text-muted)] mb-2 opacity-40" />
                 <p className="text-xs font-bold text-[var(--text-primary)]">No upcoming appointments</p>
-                <Link to="/doctor/appointments" className="text-xs font-bold text-[var(--accent-primary)] hover:underline mt-1.5">
+                <Link to="/doctor/appointments?schedule=true" className="text-xs font-bold text-[var(--accent-primary)] hover:underline mt-1.5">
                   + Schedule a consultation
                 </Link>
               </div>
@@ -198,8 +203,10 @@ export default function DoctorDashboard() {
             {reviews.length === 0 && (
               <div className="flex-1 flex flex-col items-center justify-center min-h-[200px] p-8 text-center">
                 <Brain className="w-8 h-8 text-[var(--text-muted)] mb-2 opacity-50" />
-                <p className="text-xs font-bold text-[var(--text-primary)]">No AI analyses requested yet</p>
-                <p className="text-[11px] text-[var(--text-muted)] mt-1">Initiate a review from the Patient Workspace.</p>
+                <p className="text-[11px] text-[var(--text-muted)] mt-1">Initiate a review from the Patient Workspace or click below.</p>
+                <Link to="/doctor/reviews" className="text-xs font-bold text-[var(--accent-primary)] hover:underline mt-2">
+                  + Launch new AI clinical review
+                </Link>
               </div>
             )}
           </div>

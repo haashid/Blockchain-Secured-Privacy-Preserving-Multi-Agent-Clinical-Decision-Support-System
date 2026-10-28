@@ -1,13 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { patientsApi, recordsApi, prescriptionsApi, appointmentsApi, reportsApi } from '../../lib/hospitalApi';
 import { clinicalApi, REVIEW_PURPOSES } from '../../lib/clinicalApi';
 import { cn, formatDate } from '../../lib/utils';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Users, Search, Plus, Calendar, Activity, BrainCircuit, ShieldCheck,
   Loader2, ArrowLeft, Heart, Pill, FlaskConical, AlertTriangle, ChevronRight,
-  Filter, Check, X, BookOpen, Clipboard
+  Filter, Check, X, BookOpen, Clipboard, Brain, Clock, Stethoscope
 } from 'lucide-react';
 
 // ─── Tab definitions ─────────────────────────────────────────────────
@@ -326,13 +326,61 @@ function ReviewsTab({ patientId }: { patientId: string }) {
 
 // ─── Main Patient Workspace ───────────────────────────────────────────
 
-function PatientWorkspace({ patientId, onBack }: { patientId: string; onBack: () => void }) {
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>('overview');
-  const [showStartReview, setShowStartReview] = useState(false);
+function PatientWorkspace({
+  patientId,
+  initialTab = 'overview',
+  initialStartReview = false,
+  onBack
+}: {
+  patientId: string;
+  initialTab?: WorkspaceTab;
+  initialStartReview?: boolean;
+  onBack: () => void;
+}) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>(initialTab);
+  const [showStartReview, setShowStartReview] = useState(initialStartReview);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+
+  const [appointmentForm, setAppointmentForm] = useState({
+    scheduled_at: new Date(Date.now() + 3600000 * 2).toISOString().slice(0, 16),
+    duration_minutes: 30,
+    priority: 'routine',
+    chief_complaint: '',
+    notes: '',
+  });
+  const [appointmentError, setAppointmentError] = useState<string | null>(null);
 
   const { data: summary, isLoading: summaryLoading } = useQuery({
     queryKey: ['patientSummary', patientId],
     queryFn: () => patientsApi.clinicalSummary(patientId),
+  });
+
+  const scheduleMutation = useMutation({
+    mutationFn: (data: any) =>
+      appointmentsApi.create({
+        ...data,
+        patient_id: patientId,
+        scheduled_at: new Date(data.scheduled_at).toISOString(),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['patientSummary', patientId] });
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      setShowScheduleModal(false);
+      setAppointmentForm({
+        scheduled_at: new Date(Date.now() + 3600000 * 2).toISOString().slice(0, 16),
+        duration_minutes: 30,
+        priority: 'routine',
+        chief_complaint: '',
+        notes: '',
+      });
+      setAppointmentError(null);
+      setActiveTab('appointments');
+    },
+    onError: (err: any) => {
+      setAppointmentError(err.message || 'Failed to schedule appointment');
+    },
   });
 
   const patient = summary?.patient;
@@ -350,10 +398,115 @@ function PatientWorkspace({ patientId, onBack }: { patientId: string; onBack: ()
 
   return (
     <div className="flex flex-col animate-fade-in max-w-[1400px] mx-auto">
+      {/* Schedule Consultation Modal */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--bg-app)]">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-sky-400" />
+                <h2 className="text-lg font-bold text-[var(--text-primary)]">Schedule Consultation</h2>
+              </div>
+              <button onClick={() => setShowScheduleModal(false)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">✕</button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                scheduleMutation.mutate(appointmentForm);
+              }}
+              className="p-6 space-y-4"
+            >
+              <div>
+                <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider block mb-1">Patient</label>
+                <div className="p-3 bg-[var(--bg-panel-hover)] rounded-xl border border-[var(--border-subtle)] text-sm font-bold text-[var(--text-primary)]">
+                  {patient.first_name} {patient.last_name} ({patient.medical_record_number})
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider block mb-1">Date & Time *</label>
+                  <input
+                    type="datetime-local"
+                    className="field-input text-xs"
+                    value={appointmentForm.scheduled_at}
+                    onChange={(e) => setAppointmentForm({ ...appointmentForm, scheduled_at: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider block mb-1">Duration</label>
+                  <select
+                    className="field-input text-xs"
+                    value={appointmentForm.duration_minutes}
+                    onChange={(e) => setAppointmentForm({ ...appointmentForm, duration_minutes: Number(e.target.value) })}
+                  >
+                    <option value={15}>15 Minutes</option>
+                    <option value={30}>30 Minutes</option>
+                    <option value={45}>45 Minutes</option>
+                    <option value={60}>60 Minutes</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider block mb-1">Priority</label>
+                <select
+                  className="field-input text-xs"
+                  value={appointmentForm.priority}
+                  onChange={(e) => setAppointmentForm({ ...appointmentForm, priority: e.target.value })}
+                >
+                  <option value="routine">Routine Consultation</option>
+                  <option value="urgent">Urgent</option>
+                  <option value="follow_up">Follow-up</option>
+                  <option value="emergency">Emergency</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider block mb-1">Chief Complaint *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Hypertension management checkup, Chest discomfort evaluation"
+                  className="field-input text-xs"
+                  value={appointmentForm.chief_complaint}
+                  onChange={(e) => setAppointmentForm({ ...appointmentForm, chief_complaint: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider block mb-1">Clinical Notes</label>
+                <textarea
+                  placeholder="Any preparatory instructions or relevant history for this visit..."
+                  className="field-input text-xs h-20 resize-none"
+                  value={appointmentForm.notes}
+                  onChange={(e) => setAppointmentForm({ ...appointmentForm, notes: e.target.value })}
+                />
+              </div>
+
+              {appointmentError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs">
+                  {appointmentError}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-[var(--border-subtle)]">
+                <button type="button" onClick={() => setShowScheduleModal(false)} className="btn-secondary text-xs">Cancel</button>
+                <button type="submit" disabled={scheduleMutation.isPending} className="btn-primary text-xs">
+                  {scheduleMutation.isPending ? 'Scheduling...' : 'Confirm Appointment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4 mb-5 border-b border-[var(--border-subtle)] pb-5">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 border border-[var(--border-strong)] rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel-hover)] transition-colors">
+          <button onClick={onBack} className="p-2 border border-[var(--border-strong)] rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel-hover)] transition-colors" title="Back to Registry">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-4">
@@ -373,7 +526,13 @@ function PatientWorkspace({ patientId, onBack }: { patientId: string; onBack: ()
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={() => setShowScheduleModal(true)}
+            className="btn-secondary flex items-center gap-2 text-sm"
+          >
+            <Calendar className="w-4 h-4 text-sky-400" /> Schedule Visit
+          </button>
           <button
             onClick={() => setShowStartReview(!showStartReview)}
             className={cn("btn-primary flex items-center gap-2 text-sm", showStartReview && "opacity-70")}
@@ -398,13 +557,14 @@ function PatientWorkspace({ patientId, onBack }: { patientId: string; onBack: ()
         <div className="mb-5">
           <StartReviewPanel
             patientId={patientId}
-            onReviewStarted={() => {
+            onReviewStarted={(reviewId) => {
               setShowStartReview(false);
-              setActiveTab('reviews');
+              navigate(`/doctor/reviews/${reviewId}`);
             }}
           />
         </div>
       )}
+
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-[var(--border-subtle)] pb-px mb-5 overflow-x-auto">
@@ -545,28 +705,54 @@ function PatientWorkspace({ patientId, onBack }: { patientId: string; onBack: ()
 
         {/* Appointments */}
         {activeTab === 'appointments' && (
-          <div className="space-y-3">
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 panel p-4">
+              <div>
+                <h3 className="font-bold text-sm text-[var(--text-primary)]">Care Consultations</h3>
+                <p className="text-xs text-[var(--text-muted)]">Scheduled visits, routine checkups, and consultations for {patient.first_name} {patient.last_name}</p>
+              </div>
+              <button
+                onClick={() => setShowScheduleModal(true)}
+                className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" /> Schedule Consultation
+              </button>
+            </div>
+
             {!appointments?.length ? (
-              <div className="text-center py-12 text-[var(--text-muted)]">
-                <Calendar className="w-8 h-8 mx-auto mb-3 opacity-40" />
-                <p className="text-sm font-semibold">No appointments on file</p>
+              <div className="panel text-center py-12 text-[var(--text-muted)] flex flex-col items-center justify-center">
+                <Calendar className="w-10 h-10 mb-3 opacity-40 text-sky-400" />
+                <p className="text-sm font-bold text-[var(--text-primary)]">No appointments on file</p>
+                <p className="text-xs text-[var(--text-muted)] mt-1 mb-4">Book a consultation or clinical visit for this patient.</p>
+                <button
+                  onClick={() => setShowScheduleModal(true)}
+                  className="btn-primary text-xs py-2 px-4 inline-flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Book Consultation
+                </button>
               </div>
             ) : appointments.map((a: any) => {
               const isPast = new Date(a.scheduled_at) < new Date();
               return (
-                <div key={a.id} className="panel p-4 flex items-start gap-4">
+                <div key={a.id} className="panel p-4 flex items-start gap-4 hover:border-[var(--accent-primary)]/30 transition-colors">
                   <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0", !isPast ? "bg-[var(--accent-primary)]/10" : "bg-[var(--bg-panel-hover)]")}>
                     <Calendar className={cn("w-5 h-5", !isPast ? "text-[var(--accent-primary)]" : "text-[var(--text-muted)]")} />
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-bold text-[var(--text-primary)] text-sm">{a.chief_complaint || 'Appointment'}</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <p className="font-bold text-[var(--text-primary)] text-sm">{a.chief_complaint || 'General Consultation'}</p>
                       <span className={`badge ${a.priority === 'urgent' ? 'badge-warning' : a.priority === 'emergency' ? 'badge-danger' : 'badge-neutral'} text-[10px]`}>{a.priority}</span>
-                      <span className={`badge ${a.status === 'completed' ? 'badge-healthy' : a.status === 'scheduled' ? 'badge-neutral' : 'badge-warning'} text-[10px]`}>{a.status}</span>
+                      <span className={`badge ${a.status === 'completed' ? 'badge-healthy' : a.status === 'scheduled' ? 'badge-neutral' : 'badge-warning'} text-[10px]`}>{a.status.replace('_', ' ')}</span>
                     </div>
                     <p className="text-xs text-[var(--text-muted)]">{formatDate(a.scheduled_at)} · {a.duration_minutes} min</p>
-                    {a.notes && <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">{a.notes}</p>}
+                    {a.notes && <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed bg-[var(--bg-panel-hover)]/70 p-2 rounded border border-[var(--border-subtle)]">{a.notes}</p>}
                   </div>
+                  <Link
+                    to="/doctor/appointments"
+                    className="btn-secondary py-1.5 px-2.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] shrink-0"
+                  >
+                    View in Calendar
+                  </Link>
                 </div>
               );
             })}
@@ -686,10 +872,26 @@ function RegisterPatientModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
 // ─── Main Registry View ───────────────────────────────────────────────
 
 export default function DoctorPatients() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  const urlPatientId = searchParams.get('patientId');
+  const urlTab = searchParams.get('tab') as WorkspaceTab | null;
+  const urlAction = searchParams.get('action');
+
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
-  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(urlPatientId);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+
+  // Sync state if URL search params change
+  useEffect(() => {
+    if (urlPatientId) {
+      setSelectedPatientId(urlPatientId);
+    } else {
+      setSelectedPatientId(null);
+    }
+  }, [urlPatientId]);
 
   const { data: patients, isLoading } = useQuery({ queryKey: ['patients'], queryFn: patientsApi.list });
 
@@ -703,7 +905,17 @@ export default function DoctorPatients() {
   });
 
   if (selectedPatientId) {
-    return <PatientWorkspace patientId={selectedPatientId} onBack={() => setSelectedPatientId(null)} />;
+    return (
+      <PatientWorkspace
+        patientId={selectedPatientId}
+        initialTab={urlTab || 'overview'}
+        initialStartReview={urlAction === 'start_review'}
+        onBack={() => {
+          setSelectedPatientId(null);
+          setSearchParams({});
+        }}
+      />
+    );
   }
 
   return (
@@ -739,7 +951,7 @@ export default function DoctorPatients() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[var(--bg-panel-hover)] border-b border-[var(--border-strong)]">
-                {['MRN', 'Patient', 'Conditions', 'Allergies', 'Status', 'Action'].map(h => (
+                {['MRN', 'Patient', 'Conditions', 'Allergies', 'Status', 'Actions'].map(h => (
                   <th key={h} className="px-5 py-3.5 text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{h}</th>
                 ))}
               </tr>
@@ -750,7 +962,14 @@ export default function DoctorPatients() {
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={6} className="px-5 py-16 text-center"><p className="text-sm font-semibold text-[var(--text-secondary)]">No patients found</p></td></tr>
               ) : filtered.map((patient: any) => (
-                <tr key={patient.id} className="hover:bg-[var(--bg-panel-hover)] transition-colors group cursor-pointer" onClick={() => setSelectedPatientId(patient.id)}>
+                <tr
+                  key={patient.id}
+                  className="hover:bg-[var(--bg-panel-hover)] transition-colors group cursor-pointer"
+                  onClick={() => {
+                    setSelectedPatientId(patient.id);
+                    setSearchParams({ patientId: patient.id });
+                  }}
+                >
                   <td className="px-5 py-4"><span className="font-mono text-xs font-semibold text-[var(--text-secondary)]">{patient.medical_record_number}</span></td>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
@@ -777,9 +996,38 @@ export default function DoctorPatients() {
                   </td>
                   <td className="px-5 py-4"><span className="badge badge-healthy text-[10px]">Active</span></td>
                   <td className="px-5 py-4">
-                    <button className="text-[var(--accent-primary)] opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-[var(--accent-primary)]/10 rounded-md">
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedPatientId(patient.id);
+                          setSearchParams({ patientId: patient.id });
+                        }}
+                        className="btn-secondary py-1 px-2.5 text-xs font-semibold hover:border-[var(--accent-primary)]"
+                      >
+                        Chart
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedPatientId(patient.id);
+                          setSearchParams({ patientId: patient.id, tab: 'reviews', action: 'start_review' });
+                        }}
+                        className="btn-secondary py-1 px-2.5 text-xs font-semibold text-purple-400 hover:text-purple-300 hover:border-purple-500/30"
+                      >
+                        <Brain className="w-3 h-3 mr-1 inline" /> Review
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/doctor/appointments?patientId=${patient.id}&schedule=true`);
+                        }}
+                        className="btn-secondary py-1 px-2 text-xs font-semibold text-sky-400 hover:text-sky-300 hover:border-sky-500/30"
+                        title="Schedule Consultation"
+                      >
+                        <Calendar className="w-3.5 h-3.5 inline" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

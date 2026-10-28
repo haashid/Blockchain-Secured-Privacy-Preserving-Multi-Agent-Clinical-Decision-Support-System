@@ -155,15 +155,20 @@ export default function DoctorRecords() {
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setFormData((prev) => ({ ...prev, doctor_id: myDoctor?.id || '' }));
-            setShowCreateModal(true);
-          }}
-          className="btn-primary"
-        >
-          <Plus className="w-4 h-4 mr-2" /> Add Medical Record
-        </button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <Link to="/doctor/appointments?schedule=true" className="btn-secondary">
+            <Calendar className="w-4 h-4 mr-2 text-sky-400" /> Schedule Visit
+          </Link>
+          <button
+            onClick={() => {
+              setFormData((prev) => ({ ...prev, doctor_id: myDoctor?.id || '' }));
+              setShowCreateModal(true);
+            }}
+            className="btn-primary"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Add Medical Record
+          </button>
+        </div>
       </div>
 
       {/* Stats Counter */}
@@ -301,10 +306,10 @@ export default function DoctorRecords() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 self-end sm:self-center">
+                  <div className="flex items-center gap-2 self-end sm:self-center flex-wrap">
                     <Link
-                      to={`/doctor/patients?patientId=${rec.patient_id}&tab=reviews`}
-                      className="btn-secondary text-xs py-1.5 px-3"
+                      to={`/doctor/patients?patientId=${rec.patient_id}&tab=reviews&action=start_review`}
+                      className="btn-secondary text-xs py-1.5 px-3 hover:border-purple-500/40"
                     >
                       <Brain className="w-3.5 h-3.5 mr-1.5 text-purple-400" /> Start Review
                     </Link>
@@ -313,6 +318,13 @@ export default function DoctorRecords() {
                       className="btn-secondary text-xs py-1.5 px-3"
                     >
                       Patient Chart <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                    </Link>
+                    <Link
+                      to={`/doctor/appointments?patientId=${rec.patient_id}&schedule=true`}
+                      className="btn-secondary text-xs py-1.5 px-2.5 text-[var(--text-muted)] hover:text-sky-400"
+                      title="Schedule Consultation"
+                    >
+                      <Calendar className="w-3.5 h-3.5" />
                     </Link>
                   </div>
                 </div>

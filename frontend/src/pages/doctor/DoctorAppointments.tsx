@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { appointmentsApi, patientsApi, doctorsApi } from '../../lib/hospitalApi';
 import { formatDate, cn } from '../../lib/utils';
 import {
@@ -11,13 +11,17 @@ import {
 
 export default function DoctorAppointments() {
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const urlPatientId = searchParams.get('patientId');
+  const urlSchedule = searchParams.get('schedule');
+
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showScheduleModal, setShowScheduleModal] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
-    patient_id: '',
+    patient_id: urlPatientId || '',
     doctor_id: '',
     scheduled_at: '',
     duration_minutes: 30,
@@ -26,6 +30,20 @@ export default function DoctorAppointments() {
     notes: '',
   });
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Auto open modal if navigated with schedule=true or patientId
+  useEffect(() => {
+    if (urlSchedule === 'true' || urlPatientId) {
+      if (urlPatientId) {
+        setFormData((prev) => ({
+          ...prev,
+          patient_id: urlPatientId,
+          scheduled_at: prev.scheduled_at || new Date(Date.now() + 3600000 * 2).toISOString().slice(0, 16),
+        }));
+      }
+      setShowScheduleModal(true);
+    }
+  }, [urlSchedule, urlPatientId]);
 
   // Queries
   const { data: appointments, isLoading } = useQuery({
@@ -326,8 +344,8 @@ export default function DoctorAppointments() {
                   )}
 
                   <Link
-                    to={`/doctor/patients?patientId=${appt.patient_id}&tab=reviews`}
-                    className="btn-secondary text-xs py-1.5 px-3"
+                    to={`/doctor/patients?patientId=${appt.patient_id}&tab=reviews&action=start_review`}
+                    className="btn-secondary text-xs py-1.5 px-3 hover:border-purple-500/40"
                   >
                     <Brain className="w-3.5 h-3.5 mr-1.5 text-purple-400" /> AI Review
                   </Link>
